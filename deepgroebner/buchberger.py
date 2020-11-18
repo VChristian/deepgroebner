@@ -3,7 +3,7 @@
 import numpy as np
 import sympy as sp
 
-from .wrapped import CBuchbergerEnv
+#from .wrapped import CBuchbergerEnv
 
 
 def spoly(f, g, lmf=None, lmg=None):

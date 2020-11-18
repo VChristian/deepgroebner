@@ -12,7 +12,9 @@ import gym
 from deepgroebner.buchberger import BuchbergerEnv, LeadMonomialsWrapper, BuchbergerAgent
 from deepgroebner.ideals import RandomBinomialIdealGenerator, RandomIdealGenerator
 from deepgroebner.pg import PGAgent, PPOAgent
-from deepgroebner.networks import MultilayerPerceptron, ParallelMultilayerPerceptron, AttentionPMLP, TransformerPMLP, PairsLeftBaseline, AgentBaseline
+from deepgroebner.networks import MultilayerPerceptron, ParallelMultilayerPerceptron, \
+                                    AttentionPMLP, TransformerPMLP, PairsLeftBaseline, \
+                                    AgentBaseline, PointerNetwork, PBPointerNet
 
 
 def make_parser():
@@ -65,7 +67,7 @@ def make_parser():
 
     policy = parser.add_argument_group('policy model')
     policy.add_argument('--policy_model',
-                        choices=['mlp', 'pmlp', 'apmlp', 'tpmlp'],
+                        choices=['mlp', 'pmlp', 'apmlp', 'tpmlp', 'pnet', 'pbpnet'],
                         default='pmlp',
                         help='policy network type')
     policy.add_argument('--policy_kwargs',
@@ -201,6 +203,10 @@ def make_policy_network(args):
             policy_network = ParallelMultilayerPerceptron(**args.policy_kwargs)
         elif args.policy_model == 'apmlp':
             policy_network = AttentionPMLP(**args.policy_kwargs)
+        elif args.policy_model == 'pnet': 
+            policy_network = PointerNetwork(**args.policy_kwargs)
+        elif args.policy_model == 'pbpnet':
+            policy_network = PBPointerNet(**args.policy_kwargs)
         else:
             policy_network = TransformerPMLP(**args.policy_kwargs)
         batch = np.zeros((1, 10, 2 * args.k * int(args.distribution.split('-')[0])), dtype=np.int32)

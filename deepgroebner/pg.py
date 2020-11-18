@@ -163,7 +163,7 @@ class TrajectoryBuffer:
         self.start = 0
         self.end = 0
 
-    def get(self, batch_size=64, normalize_advantages=True, sort=False, drop_remainder=True):
+    def get(self, batch_size=64, normalize_advantages=True, sort=False, drop_remainder=True, total_interactions = None):
         """Return a tf.Dataset of training data from this TrajectoryBuffer.
 
         Parameters
@@ -182,7 +182,7 @@ class TrajectoryBuffer:
         dataset : tf.Dataset
 
         """
-        actions = np.array(self.actions[:self.start], dtype=np.int32)
+        actions = np.array(self.actions[:self.start], dtype=np.int32) # actions is a list of tensors constants
         logprobs = np.array(self.logprobs[:self.start], dtype=np.float32)
         advantages = np.array(self.values[:self.start], dtype=np.float32)
         values = np.array(self.rewards[:self.start], dtype=np.float32)
@@ -217,7 +217,7 @@ class TrajectoryBuffer:
                 tf.data.Dataset.from_tensor_slices(values),
             ))
             if batch_size is None:
-                batch_size = len(states)
+                batch_size = total_interactions#len(states)
             padded_shapes = ([None, self.states[0].shape[1]], [], [], [], [])
             padding_values = (tf.constant(-1, dtype=tf.int32),
                               tf.constant(0, dtype=tf.int32),
@@ -239,7 +239,7 @@ class TrajectoryBuffer:
                 tf.data.Dataset.from_tensor_slices(values),
             ))
             if batch_size is None:
-                batch_size = len(states)
+                batch_size = total_interactions#len(states)
             dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
 
         return dataset
@@ -323,6 +323,7 @@ class Agent:
         self.normalize_advantages = normalize_advantages
         self.kld_limit = kld_limit
 
+    @tf.function(experimental_relax_shapes=True)
     def act(self, state, return_logprob=False):
         """Return an action for the given state using the policy model.
 
@@ -337,9 +338,9 @@ class Agent:
         logpi = self.policy_model(state[np.newaxis])
         action = tf.random.categorical(logpi, 1)[0, 0]
         if return_logprob:
-            return action.numpy(), logpi[:, action][0].numpy()
+            return action, logpi[:, action][0]
         else:
-            return action.numpy()
+            return action
 
     def train(self, env, episodes=10, epochs=1, max_episode_length=None, verbose=0, save_freq=1,
               logdir=None, parallel=True, batch_size=64):
@@ -388,11 +389,16 @@ class Agent:
 
         for i in range(epochs):
             self.buffer.clear()
-            return_history = self.run_episodes(
-                env, episodes=episodes, max_episode_length=max_episode_length,
+            return_history, interactions = self.run_episodes(
+                env, episodes=episodes, max_episode_length=max_episode_length, max_interactions=5000,
                 store=True, parallel=parallel
             )
-            dataset = self.buffer.get(normalize_advantages=self.normalize_advantages, batch_size=batch_size)
+            
+            # There might be zeros in the arrays
+            return_history['returns'] = return_history['returns'][return_history['returns'] != 0]
+            return_history['lengths'] = return_history['lengths'][return_history['lengths'] != 0]
+
+            dataset = self.buffer.get(normalize_advantages=self.normalize_advantages, batch_size=batch_size, total_interactions=interactions)
             policy_history = self._fit_policy_model(dataset, epochs=self.policy_updates)
             value_history = self._fit_value_model(dataset, epochs=self.value_updates)
 
@@ -471,7 +477,7 @@ class Agent:
                     value = self.value_model.predict(env)
             else:
                 value = self.value_model(state[np.newaxis])[0][0]
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done, _ = env.step(action.numpy()) # actions are now tensors
             if buffer is not None:
                 buffer.store(state, action, reward, logprob, value)
             episode_length += 1
@@ -491,7 +497,7 @@ class Agent:
             results.append(self.run_episode(env, max_episode_length=max_episode_length, buffer=buff))
         output.put((results,buff))
 
-    def run_episodes(self, env, episodes=100, max_episode_length=None, store=False, parallel=True):
+    def run_episodes(self, env, episodes=100, max_episode_length=None, max_interactions = None, store=False, parallel=True):
         """Run several episodes, store interaction in buffer, and return history.
 
         Parameters
@@ -531,12 +537,17 @@ class Agent:
             for i in range(episodes):
                 (history['returns'][i], history['lengths'][i]) = returns[i]
         else:
+            total_interactions = 0            
             for i in range(episodes):
                 R, L = self.run_episode(env, max_episode_length=max_episode_length, buffer=self.buffer)
                 history['returns'][i] = R
                 history['lengths'][i] = L
 
-        return history
+                total_interactions += L
+                if (not max_interactions is None) and total_interactions > max_interactions: # Break off if we go over max_interactions 
+                    break
+
+        return history, total_interactions
 
     def _fit_policy_model(self, dataset, epochs=1):
         """Fit policy model using data from dataset."""
@@ -556,7 +567,7 @@ class Agent:
                 break
         return {k: np.array(v) for k, v in history.items()}
 
-    @tf.function
+    @tf.function()
     def _fit_policy_model_step(self, states, actions, logprobs, advantages):
         """Fit policy model on one batch of data."""
         with tf.GradientTape() as tape:
