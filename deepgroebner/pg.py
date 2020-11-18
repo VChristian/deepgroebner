@@ -217,7 +217,7 @@ class TrajectoryBuffer:
                 tf.data.Dataset.from_tensor_slices(values),
             ))
             if batch_size is None:
-                batch_size = total_interactions#len(states)
+                batch_size = len(states)
             padded_shapes = ([None, self.states[0].shape[1]], [], [], [], [])
             padding_values = (tf.constant(-1, dtype=tf.int32),
                               tf.constant(0, dtype=tf.int32),
@@ -239,7 +239,7 @@ class TrajectoryBuffer:
                 tf.data.Dataset.from_tensor_slices(values),
             ))
             if batch_size is None:
-                batch_size = total_interactions#len(states)
+                batch_size = len(states)
             dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
 
         return dataset
@@ -342,7 +342,7 @@ class Agent:
         else:
             return action
 
-    def train(self, env, episodes=10, epochs=1, max_episode_length=None, max_interactions = 5000, verbose=0, save_freq=1,
+    def train(self, env, episodes=10, epochs=1, max_episode_length=None, max_interactions = None, verbose=0, save_freq=1,
               logdir=None, parallel=True, batch_size=64):
         """Train the agent on env.
 
@@ -394,6 +394,8 @@ class Agent:
                 store=True, parallel=parallel
             )
             
+            print(interactions)
+
             # There might be zeros in the arrays
             return_history['returns'] = return_history['returns'][return_history['returns'] != 0]
             return_history['lengths'] = return_history['lengths'][return_history['lengths'] != 0]
@@ -518,8 +520,8 @@ class Agent:
             Dictionary which contains information from the runs.
 
         """
-        history = {'returns': np.zeros(episodes),
-                   'lengths': np.zeros(episodes)}
+        history = {'returns': [],
+                   'lengths': []}
         if parallel:
             output = mp.Queue()
             assert episodes % PACKET_SIZE == 0, "PACKET_SIZE must divide the number of episodes"
@@ -541,16 +543,17 @@ class Agent:
             if max_interactions is None:
                 for i in range(episodes):
                     R, L = self.run_episode(env, max_episode_length=max_episode_length, buffer=self.buffer)
-                    history['returns'][i] = R
-                    history['lengths'][i] = L
+                    history['returns'].append(R)
+                    history['lengths'].append(L)
                     total_interactions += L
             else: 
-                while total_interactions > max_interactions:
+                while total_interactions < max_interactions:
                     R, L = self.run_episode(env, max_episode_length=max_episode_length, buffer=self.buffer)
-                    history['returns'][i] = R
-                    history['lengths'][i] = L
+                    history['returns'].append(R)
+                    history['lengths'].append(L)
                     total_interactions += L
-
+        history['returns'] = np.array(history['returns'])
+        history['lengths'] = np.array(history['lengths'])
         return history, total_interactions
 
     def _fit_policy_model(self, dataset, epochs=1):

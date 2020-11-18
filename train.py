@@ -128,7 +128,7 @@ def make_parser():
                        help='max number of interactions per episode')
     train.add_argument('--max_interactions',
                         type=lambda x: int(x) if x.lower() != 'none' else None,
-                        default=12000,
+                        default=8000,
                         help='soft bound on number of steps per epoch')
     train.add_argument('--batch_size',
                        type=lambda x: int(x) if x.lower() != 'none' else None,
@@ -284,5 +284,5 @@ if __name__ == '__main__':
     print("Saving run in", logdir)
     agent.train(env, episodes=args.episodes, epochs=args.epochs,
                 save_freq=args.save_freq, logdir=logdir, verbose=args.verbose,
-                max_episode_length=args.max_episode_length, parallel=args.parallel,
-                batch_size=args.batch_size)
+                max_episode_length=args.max_episode_length, max_interactions= args.max_interactions, 
+                parallel=args.parallel, batch_size=args.batch_size)
