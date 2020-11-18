@@ -126,6 +126,10 @@ def make_parser():
                        type=lambda x: int(x) if x.lower() != 'none' else None,
                        default=500,
                        help='max number of interactions per episode')
+    train.add_argument('--max_interactions',
+                        type=lambda x: int(x) if x.lower() != 'none' else None,
+                        default=12000,
+                        help='soft bound on number of steps per epoch')
     train.add_argument('--batch_size',
                        type=lambda x: int(x) if x.lower() != 'none' else None,
                        default=64,

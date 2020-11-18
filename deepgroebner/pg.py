@@ -342,7 +342,7 @@ class Agent:
         else:
             return action
 
-    def train(self, env, episodes=10, epochs=1, max_episode_length=None, verbose=0, save_freq=1,
+    def train(self, env, episodes=10, epochs=1, max_episode_length=None, max_interactions = 5000, verbose=0, save_freq=1,
               logdir=None, parallel=True, batch_size=64):
         """Train the agent on env.
 
@@ -390,7 +390,7 @@ class Agent:
         for i in range(epochs):
             self.buffer.clear()
             return_history, interactions = self.run_episodes(
-                env, episodes=episodes, max_episode_length=max_episode_length, max_interactions=5000,
+                env, episodes=episodes, max_episode_length=max_episode_length, max_interactions=max_interactions,
                 store=True, parallel=parallel
             )
             
@@ -537,15 +537,19 @@ class Agent:
             for i in range(episodes):
                 (history['returns'][i], history['lengths'][i]) = returns[i]
         else:
-            total_interactions = 0            
-            for i in range(episodes):
-                R, L = self.run_episode(env, max_episode_length=max_episode_length, buffer=self.buffer)
-                history['returns'][i] = R
-                history['lengths'][i] = L
-
-                total_interactions += L
-                if (not max_interactions is None) and total_interactions > max_interactions: # Break off if we go over max_interactions 
-                    break
+            total_interactions = 0  
+            if max_interactions is None:
+                for i in range(episodes):
+                    R, L = self.run_episode(env, max_episode_length=max_episode_length, buffer=self.buffer)
+                    history['returns'][i] = R
+                    history['lengths'][i] = L
+                    total_interactions += L
+            else: 
+                while total_interactions > max_interactions:
+                    R, L = self.run_episode(env, max_episode_length=max_episode_length, buffer=self.buffer)
+                    history['returns'][i] = R
+                    history['lengths'][i] = L
+                    total_interactions += L
 
         return history, total_interactions
 
