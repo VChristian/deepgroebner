@@ -571,6 +571,7 @@ class Agent:
             history['kld'].append(kld / batches)
             history['ent'].append(ent / batches)
             if self.kld_limit is not None and kld > self.kld_limit:
+                print('Break at {} with kld {}'.format(epoch, kld))
                 break
         return {k: np.array(v) for k, v in history.items()}
 
