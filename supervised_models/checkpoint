@@ -1,0 +1,2 @@
+model_checkpoint_path: "3-20-10-pmlp-s-selu"
+all_model_checkpoint_paths: "3-20-10-pmlp-s-selu"
