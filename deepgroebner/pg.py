@@ -559,6 +559,7 @@ class Agent:
     def _fit_policy_model(self, dataset, epochs=1):
         """Fit policy model using data from dataset."""
         history = {'loss': [], 'kld': [], 'ent': []}
+        updates = 0
         for epoch in range(epochs):
             loss, kld, ent, batches = 0, 0, 0, 0
             for states, actions, logprobs, advantages, _ in dataset:
@@ -567,12 +568,14 @@ class Agent:
                 kld += batch_kld
                 ent += batch_ent
                 batches += 1
+            updates += 1
             history['loss'].append(loss / batches)
             history['kld'].append(kld / batches)
             history['ent'].append(ent / batches)
             if self.kld_limit is not None and kld > self.kld_limit:
                 print('Break at {} with kld {}'.format(epoch, kld))
                 break
+        print('Number of updates {}'.format(updates))
         return {k: np.array(v) for k, v in history.items()}
 
     @tf.function()
