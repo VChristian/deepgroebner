@@ -116,7 +116,7 @@ class RecurrentEmbeddingLayer(tf.keras.layers.Layer):
     def __init__(self, embed_dim, hidden_layers, cell='gru', need_mask = True):
         super(RecurrentEmbeddingLayer, self).__init__()
         cell_fn = tf.keras.layers.GRU if cell == 'gru' else tf.keras.layers.LSTM
-        self.hidden_layers = [cell_fn(u, return_sequences=True) for u in hidden_layers]
+        self.hidden_layers = [cell_fn(u, return_sequences=True, return_state=True) for u in hidden_layers]
         self.final_layer = cell_fn(embed_dim, return_sequences=True, return_state=True)
         self.supports_masking = need_mask
 

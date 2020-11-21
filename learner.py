@@ -31,7 +31,7 @@ class SupervisedLearner():
         return tf.linalg.matmul(correct_action, log_prob, transpose_b = True)
     
 
-    def train(self, filename, model_path, epochs = 5, batch_size = 100):
+    def train(self, filename, model_path, epochs = 5, batch_size = 100, training = False):
         '''
         Train the learner using certain strategy 
         '''
@@ -43,7 +43,10 @@ class SupervisedLearner():
             with tf.GradientTape() as tape:
                 for _, datum in enumerate(batch):
                     datum_tensor = tf.expand_dims(tf.convert_to_tensor(datum[0]), axis = 0) #(1, num_poly, feature_size)
-                    logprob = self.model(datum_tensor)
+                    if training:
+                        logprob = self.model(datum_tensor, training)
+                    else:
+                        logprob = self.model(datum_tensor)
                     correct_action = tf.expand_dims(tf.one_hot(datum[1], datum[0].shape[0]), axis = 0)
                     loss += self.loss_fn(correct_action, -logprob)
                 grads = tape.gradient(loss, self.model.trainable_variables)
@@ -170,7 +173,7 @@ class Evaluator:
             while not done:
                 lead_action = self.lead_agent.act(state)
                 for key in self.pretrained_model.keys():
-                    action = self.pretrained_model[key].act(state, greedy = True)
+                    action = self.pretrained_model[key].act(state)
                     if action == lead_action:
                         self.performance_tracker[key][i] = self.performance_tracker[key][i] + 1
                 next_state,_,done,_ = self.env.step(lead_action)
@@ -185,7 +188,7 @@ class Evaluator:
         return self.performance_tracker
 
 class Teacher:
-    def __init__(self, dataset_path, strategy, model, model_save_path, optimizer, n, d, s, epochs, batch_size):
+    def __init__(self, dataset_path, strategy, model, model_save_path, optimizer, n, d, s, epochs, batch_size, training_flag):
         pd = PolynomialDataset(n,d,s,strategy)
         pd.generate_dataset(dataset_path, num_episodes=1000)
         self.learner = SupervisedLearner(n,d,s,model,optimizer, selection_strategy=strategy)
@@ -193,6 +196,7 @@ class Teacher:
         self.dataset_path = dataset_path
         self.epochs = epochs
         self.batch_size = batch_size
+        self.training = training_flag
 
     def teach(self):
-        self.learner.train(self.dataset_path, self.model_path, self.epochs, self.batch_size)
+        self.learner.train(self.dataset_path, self.model_path, self.epochs, self.batch_size, self.training)
