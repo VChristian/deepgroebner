@@ -683,7 +683,7 @@ def ppo_surrogate_loss(eps=0.2):
 
     """
     @tf.function(experimental_relax_shapes=True)
-    def loss(new_logps, old_logps, advantages):
+    def loss(new_logps, old_logps, advantages, beta = 1e-3):
         """Return loss with gradient for proximal policy optimization.
 
         Parameters
@@ -701,7 +701,8 @@ def ppo_surrogate_loss(eps=0.2):
             The loss for each interaction.
         """
         min_adv = tf.where(advantages > 0, (1 + eps) * advantages, (1 - eps) * advantages)
-        return -tf.minimum(tf.exp(new_logps - old_logps) * advantages, min_adv)
+        ent = -tf.reduce_mean(new_logps)
+        return -tf.minimum(tf.exp(new_logps - old_logps) * advantages, min_adv) + beta * ent
     return loss
 
 
