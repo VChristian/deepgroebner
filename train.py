@@ -64,6 +64,10 @@ def make_parser():
                      type=float,
                      default=0.2,
                      help='clip ratio for PPO')
+    alg.add_argument('--beta',
+                    type=float,
+                    default = 1e-3,
+                    help='weight for entropy')
 
     policy = parser.add_argument_group('policy model')
     policy.add_argument('--policy_model',

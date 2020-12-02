@@ -668,12 +668,12 @@ class PGAgent(Agent):
 
     """
 
-    def __init__(self, policy_network, **kwargs):
+    def __init__(self, policy_network, beta, **kwargs):
         super().__init__(policy_network, **kwargs)
         self.policy_loss = pg_surrogate_loss
 
 
-def ppo_surrogate_loss(eps=0.2):
+def ppo_surrogate_loss(beta, eps=0.2):
     """Return loss function with gradient for proximal policy optimization.
 
     Parameters
@@ -683,7 +683,7 @@ def ppo_surrogate_loss(eps=0.2):
 
     """
     @tf.function(experimental_relax_shapes=True)
-    def loss(new_logps, old_logps, advantages, beta = 1e-3):
+    def loss(new_logps, old_logps, advantages, beta = beta):
         """Return loss with gradient for proximal policy optimization.
 
         Parameters
@@ -715,9 +715,10 @@ class PPOAgent(Agent):
         The network for the policy model.
     eps : float, optional
         The clip ratio for PPO.
-
+    beta : float, optional
+        For weight the entropy.
     """
 
-    def __init__(self, policy_network, eps=0.2, **kwargs):
+    def __init__(self, policy_network, beta = 0, eps=0.2, **kwargs):
         super().__init__(policy_network, **kwargs)
-        self.policy_loss = ppo_surrogate_loss(eps)
+        self.policy_loss = ppo_surrogate_loss(beta, eps)
