@@ -401,7 +401,7 @@ class Agent:
             return_history['lengths'] = return_history['lengths'][return_history['lengths'] != 0]
 
             dataset = self.buffer.get(normalize_advantages=self.normalize_advantages, batch_size=batch_size, total_interactions=interactions)
-            policy_history = self._fit_policy_model(dataset, epochs=self.policy_updates)
+            policy_history = self._fit_policy_model(dataset, time_step = i/epochs, epochs=self.policy_updates)
             value_history = self._fit_value_model(dataset, epochs=self.value_updates)
 
             history['mean_returns'][i] = np.mean(return_history['returns'])
@@ -556,14 +556,14 @@ class Agent:
         history['lengths'] = np.array(history['lengths'])
         return history, total_interactions
 
-    def _fit_policy_model(self, dataset, epochs=1):
+    def _fit_policy_model(self, dataset, time_step, epochs=1):
         """Fit policy model using data from dataset."""
         history = {'loss': [], 'kld': [], 'ent': []}
         updates = 0
         for epoch in range(epochs):
             loss, kld, ent, batches = 0, 0, 0, 0
             for states, actions, logprobs, advantages, _ in dataset:
-                batch_loss, batch_kld, batch_ent = self._fit_policy_model_step(states, actions, logprobs, advantages)
+                batch_loss, batch_kld, batch_ent = self._fit_policy_model_step(states, actions, logprobs, advantages, time_step)
                 loss += batch_loss
                 kld += batch_kld
                 ent += batch_ent
@@ -579,12 +579,12 @@ class Agent:
         return {k: np.array(v) for k, v in history.items()}
 
     @tf.function()
-    def _fit_policy_model_step(self, states, actions, logprobs, advantages):
+    def _fit_policy_model_step(self, states, actions, logprobs, advantages, time_step):
         """Fit policy model on one batch of data."""
         with tf.GradientTape() as tape:
             logpis = self.policy_model(states)
             new_logprobs = tf.reduce_sum(tf.one_hot(actions, logpis.shape[1]) * logpis, axis=1)
-            loss = tf.reduce_mean(self.policy_loss(new_logprobs, logprobs, advantages))
+            loss = tf.reduce_mean(self.policy_loss(new_logprobs, logprobs, advantages, time_step))
             kld = tf.reduce_mean(logprobs - new_logprobs)
             ent = -tf.reduce_mean(new_logprobs)
         varis = self.policy_model.trainable_variables
@@ -672,7 +672,6 @@ class PGAgent(Agent):
         super().__init__(policy_network, **kwargs)
         self.policy_loss = pg_surrogate_loss
 
-
 def ppo_surrogate_loss(beta, eps=0.2):
     """Return loss function with gradient for proximal policy optimization.
 
@@ -682,8 +681,9 @@ def ppo_surrogate_loss(beta, eps=0.2):
         The clip ratio for PPO.
 
     """
+
     @tf.function(experimental_relax_shapes=True)
-    def loss(new_logps, old_logps, advantages, beta = beta):
+    def loss(new_logps, old_logps, advantages, percent_done, beta = beta):
         """Return loss with gradient for proximal policy optimization.
 
         Parameters
@@ -700,11 +700,30 @@ def ppo_surrogate_loss(beta, eps=0.2):
         loss : Tensor (batch_dim,)
             The loss for each interaction.
         """
+
         min_adv = tf.where(advantages > 0, (1 + eps) * advantages, (1 - eps) * advantages)
         ent = -tf.reduce_mean(new_logps)
-        return -tf.minimum(tf.exp(new_logps - old_logps) * advantages, min_adv) + beta * ent
+        b = beta(percent_done)
+        print(b)
+        return -tf.minimum(tf.exp(new_logps - old_logps) * advantages, min_adv) + b * ent
     return loss
 
+def scheduler(schedule, beta_val):
+    def beta(fraction, schedule = schedule, beta_val = beta_val):
+        if schedule:
+
+            # we can make this fancier
+
+            if round(fraction, 1) >= .5:
+                return 0
+            else:
+                return beta_val
+
+
+        else:
+            return beta_val
+
+    return beta
 
 class PPOAgent(Agent):
     """A proximal policy optimization agent.
@@ -719,6 +738,6 @@ class PPOAgent(Agent):
         For weight the entropy.
     """
 
-    def __init__(self, policy_network, beta = 0, eps=0.2, **kwargs):
+    def __init__(self, policy_network, schedule = False, beta = 0, eps=0.2, **kwargs):
         super().__init__(policy_network, **kwargs)
-        self.policy_loss = ppo_surrogate_loss(beta, eps)
+        self.policy_loss = ppo_surrogate_loss(scheduler(schedule = False, beta_val = beta), eps)

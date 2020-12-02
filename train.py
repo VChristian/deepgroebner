@@ -254,7 +254,13 @@ def make_agent(args):
     policy_network = make_policy_network(args)
     value_network = make_value_network(args)
     agent_fn = PGAgent if args.algorithm == 'pg' else PPOAgent
-    agent = agent_fn(policy_network=policy_network, policy_lr=args.policy_lr, policy_updates=args.policy_updates,
+
+    if args.algorithm == 'pg':
+        agent = agent_fn(policy_network=policy_network, policy_lr=args.policy_lr, policy_updates=args.policy_updates,
+                     value_network=value_network, value_lr=args.value_lr, value_updates=args.value_updates,
+                     gam=args.gam, lam=args.lam, kld_limit=args.policy_kld_limit)
+    else:
+        agent = agent_fn(policy_network=policy_network, beta = args.beta, policy_lr=args.policy_lr, policy_updates=args.policy_updates,
                      value_network=value_network, value_lr=args.value_lr, value_updates=args.value_updates,
                      gam=args.gam, lam=args.lam, kld_limit=args.policy_kld_limit)
     return agent
