@@ -705,7 +705,7 @@ def ppo_surrogate_loss(beta, eps=0.2):
         ent = -tf.reduce_mean(new_logps)
         b = beta(percent_done)
         print(b)
-        return -tf.minimum(tf.exp(new_logps - old_logps) * advantages, min_adv) - b * ent
+        return -tf.minimum(tf.exp(new_logps - old_logps) * advantages, min_adv) + b * ent
     return loss
 
 def betaScheduler(schedule, beta_val):
