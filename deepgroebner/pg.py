@@ -401,7 +401,7 @@ class Agent:
             return_history['lengths'] = return_history['lengths'][return_history['lengths'] != 0]
 
             dataset = self.buffer.get(normalize_advantages=self.normalize_advantages, batch_size=batch_size, total_interactions=interactions)
-            policy_history = self._fit_policy_model(dataset, time_step = i/epochs, epochs=self.policy_updates)
+            policy_history = self._fit_policy_model(dataset, time_step = (i+1)/epochs, epochs=self.policy_updates)
             value_history = self._fit_value_model(dataset, epochs=self.value_updates)
 
             history['mean_returns'][i] = np.mean(return_history['returns'])
@@ -668,7 +668,7 @@ class PGAgent(Agent):
 
     """
 
-    def __init__(self, policy_network, beta, **kwargs):
+    def __init__(self, policy_network, **kwargs):
         super().__init__(policy_network, **kwargs)
         self.policy_loss = pg_surrogate_loss
 
@@ -705,16 +705,16 @@ def ppo_surrogate_loss(beta, eps=0.2):
         ent = -tf.reduce_mean(new_logps)
         b = beta(percent_done)
         print(b)
-        return -tf.minimum(tf.exp(new_logps - old_logps) * advantages, min_adv) + b * ent
+        return -tf.minimum(tf.exp(new_logps - old_logps) * advantages, min_adv) - b * ent
     return loss
 
-def scheduler(schedule, beta_val):
+def betaScheduler(schedule, beta_val):
     def beta(fraction, schedule = schedule, beta_val = beta_val):
         if schedule:
 
             # we can make this fancier
 
-            if round(fraction, 1) >= .5:
+            if round(fraction, 1) > .5:
                 return 0
             else:
                 return beta_val
@@ -740,4 +740,4 @@ class PPOAgent(Agent):
 
     def __init__(self, policy_network, schedule = False, beta = 0, eps=0.2, **kwargs):
         super().__init__(policy_network, **kwargs)
-        self.policy_loss = ppo_surrogate_loss(scheduler(schedule = False, beta_val = beta), eps)
+        self.policy_loss = ppo_surrogate_loss(betaScheduler(schedule = schedule, beta_val = beta), eps)
