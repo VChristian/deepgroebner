@@ -323,11 +323,7 @@ class Agent:
         self.normalize_advantages = normalize_advantages
         self.kld_limit = kld_limit
 
-<<<<<<< HEAD
-    @tf.function()
-=======
     @tf.function(experimental_relax_shapes=True)
->>>>>>> master
     def act(self, state, return_logprob=False):
         """Return an action for the given state using the policy model.
 
@@ -345,8 +341,6 @@ class Agent:
             return action, logpi[:, action][0]
         else:
             return action
-<<<<<<< HEAD
-=======
 
     @tf.function(experimental_relax_shapes=True)
     def value(self, state):
@@ -359,7 +353,6 @@ class Agent:
 
         """
         return self.value_model(state[tf.newaxis])[0][0]
->>>>>>> master
 
     def train(self, env, episodes=10, epochs=1, max_episode_length=None, max_interactions = None, verbose=0, save_freq=1,
               logdir=None, parallel=True, batch_size=64):
@@ -493,13 +486,8 @@ class Agent:
             elif self.value_model == 'env':
                 value = env.value(gamma=self.gam)
             else:
-<<<<<<< HEAD
-                value = self.value_model(state[np.newaxis])[0][0]
-            next_state, reward, done, _ = env.step(action.numpy()) # actions are now tensors
-=======
                 value = self.value(state)
             next_state, reward, done, _ = env.step(action.numpy())
->>>>>>> master
             if buffer is not None:
                 buffer.store(state, action, reward, logprob, value)
             episode_length += 1
@@ -598,23 +586,13 @@ class Agent:
         print('Number of updates {}'.format(updates))
         return {k: np.array(v) for k, v in history.items()}
 
-<<<<<<< HEAD
-    @tf.function()
+    @tf.function(experimental_relax_shapes=True)
     def _fit_policy_model_step(self, states, actions, logprobs, advantages, time_step):
         """Fit policy model on one batch of data."""
         with tf.GradientTape() as tape:
             logpis = self.policy_model(states)
-            new_logprobs = tf.reduce_sum(tf.one_hot(actions, logpis.shape[1]) * logpis, axis=1)
-            loss = tf.reduce_mean(self.policy_loss(new_logprobs, logprobs, advantages, time_step))
-=======
-    @tf.function(experimental_relax_shapes=True)
-    def _fit_policy_model_step(self, states, actions, logprobs, advantages):
-        """Fit policy model on one batch of data."""
-        with tf.GradientTape() as tape:
-            logpis = self.policy_model(states)
             new_logprobs = tf.reduce_sum(tf.one_hot(actions, tf.shape(logpis)[1]) * logpis, axis=1)
-            loss = tf.reduce_mean(self.policy_loss(new_logprobs, logprobs, advantages))
->>>>>>> master
+            loss = tf.reduce_mean(self.policy_loss(new_logprobs, logprobs, advantages, time_step))
             kld = tf.reduce_mean(logprobs - new_logprobs)
             ent = -tf.reduce_mean(new_logprobs)
         varis = self.policy_model.trainable_variables
@@ -734,7 +712,6 @@ def ppo_surrogate_loss(beta, eps=0.2):
         min_adv = tf.where(advantages > 0, (1 + eps) * advantages, (1 - eps) * advantages)
         ent = -tf.reduce_mean(new_logps)
         b = beta(percent_done)
-        print(b)
         return -tf.minimum(tf.exp(new_logps - old_logps) * advantages, min_adv) + b * ent
     return loss
 
