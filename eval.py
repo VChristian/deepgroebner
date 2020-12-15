@@ -10,10 +10,10 @@ import json
 
 import gym
 
-from deepgroebner.buchberger import BuchbergerEnv, LeadMonomialsWrapper
-from deepgroebner.ideals import RandomBinomialIdealGenerator, RandomIdealGenerator
+from deepgroebner.buchberger import LeadMonomialsEnv
 from deepgroebner.pg import PGAgent
 from deepgroebner.networks import MultilayerPerceptron, ParallelMultilayerPerceptron, AttentionPMLP, TransformerPMLP
+from deepgroebner.wrapped import CLeadMonomialsEnv
 
 
 def make_parser():
@@ -27,6 +27,10 @@ def make_parser():
                               'CartPole-v0', 'CartPole-v1', 'LunarLander-v2'],
                      default='RandomBinomialIdeal',
                      help='evaluation environment')
+    env.add_argument('--env_seed',
+                     type=lambda x: int(x) if x.lower() != 'none' else None,
+                     default=None,
+                     help='seed for the environment')
 
     ideal = parser.add_argument_group('ideals', 'ideal distribution and environment options')
     ideal.add_argument('--distribution',
@@ -45,6 +49,10 @@ def make_parser():
                        type=int,
                        default=2,
                        help='number of lead monomials visible')
+    ideal.add_argument('--use_cython',
+                       type=lambda x: str(x).lower() == 'true',
+                       default=True,
+                       help='whether to use the Cython environment')
 
     policy = parser.add_argument_group('policy model')
     policy.add_argument('--policy_model',
@@ -59,7 +67,6 @@ def make_parser():
                         type=str,
                         default="",
                         help='filename for initial policy weights')
-
 
     run = parser.add_argument_group('running')
     run.add_argument('--episodes',
@@ -96,22 +103,11 @@ def make_env(args):
     """Return the evaluation environment for this run."""
     if args.environment in ['CartPole-v0', 'CartPole-v1', 'LunarLander-v2']:
         env = gym.make(args.environment)
+    elif args.use_cython:
+        env = CLeadMonomialsEnv(args.distribution, elimination=args.elimination, rewards=args.rewards, k=args.k)
     else:
-        dist_args = args.distribution.split('-')
-        n = int(dist_args[0])
-        d = int(dist_args[1])
-        s = int(dist_args[2])
-        constants = 'consts' in dist_args
-        homogeneous = 'homog' in dist_args
-        pure = 'pure' in dist_args
-        if args.environment == 'RandomBinomialIdeal':
-            ideal_gen = RandomBinomialIdealGenerator(n, d, s, degrees=dist_args[3],
-                                                     constants=constants, homogeneous=homogeneous, pure=pure)
-        else:
-            ideal_gen = RandomIdealGenerator(n, d, s, float(dist_args[3]), degrees=dist_args[4],
-                                             constants=constants)
-        env = BuchbergerEnv(ideal_gen, elimination=args.elimination, rewards=args.rewards)
-        env = LeadMonomialsWrapper(env, k=args.k)
+        env = LeadMonomialsEnv(args.distribution, elimination=args.elimination, rewards=args.rewards, k=args.k)
+    env.seed(args.env_seed)
     return env
 
 

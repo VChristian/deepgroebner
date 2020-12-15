@@ -286,7 +286,7 @@ class Agent:
         The learning rate for the policy model.
     policy_updates : int, optional
         The number of policy updates per epoch of training.
-    value_network : network, optional
+    value_network : network, None, or 'env', optional
         The network for the value model.
     value_lr : float, optional
         The learning rate for the value model.
@@ -323,7 +323,11 @@ class Agent:
         self.normalize_advantages = normalize_advantages
         self.kld_limit = kld_limit
 
+<<<<<<< HEAD
     @tf.function()
+=======
+    @tf.function(experimental_relax_shapes=True)
+>>>>>>> master
     def act(self, state, return_logprob=False):
         """Return an action for the given state using the policy model.
 
@@ -335,12 +339,27 @@ class Agent:
             Whether to return the log probability of choosing the chosen action.
 
         """
-        logpi = self.policy_model(state[np.newaxis])
+        logpi = self.policy_model(state[tf.newaxis])
         action = tf.random.categorical(logpi, 1)[0, 0]
         if return_logprob:
             return action, logpi[:, action][0]
         else:
             return action
+<<<<<<< HEAD
+=======
+
+    @tf.function(experimental_relax_shapes=True)
+    def value(self, state):
+        """Return the predicted value for the given state using the value model.
+
+        Parameters
+        ----------
+        state : np.array
+            The state of the environment.
+
+        """
+        return self.value_model(state[tf.newaxis])[0][0]
+>>>>>>> master
 
     def train(self, env, episodes=10, epochs=1, max_episode_length=None, max_interactions = None, verbose=0, save_freq=1,
               logdir=None, parallel=True, batch_size=64):
@@ -442,7 +461,6 @@ class Agent:
 
         return history
 
-
     def run_episode(self, env, max_episode_length=None, buffer=None):
         """Run an episode and return total reward and episode length.
 
@@ -472,14 +490,16 @@ class Agent:
             action, logprob = self.act(state, return_logprob=True)
             if self.value_model is None:
                 value = 0
-            elif hasattr(self.value_model, 'agent'):  # this is an AgentBaseline
-                if hasattr(self.value_model.agent, 'strategy'):  # with a BuchbergerAgent
-                    value = self.value_model.predict(env.env)
-                else:  # with a PGAgent/PPOAgent
-                    value = self.value_model.predict(env)
+            elif self.value_model == 'env':
+                value = env.value(gamma=self.gam)
             else:
+<<<<<<< HEAD
                 value = self.value_model(state[np.newaxis])[0][0]
             next_state, reward, done, _ = env.step(action.numpy()) # actions are now tensors
+=======
+                value = self.value(state)
+            next_state, reward, done, _ = env.step(action.numpy())
+>>>>>>> master
             if buffer is not None:
                 buffer.store(state, action, reward, logprob, value)
             episode_length += 1
@@ -578,6 +598,7 @@ class Agent:
         print('Number of updates {}'.format(updates))
         return {k: np.array(v) for k, v in history.items()}
 
+<<<<<<< HEAD
     @tf.function()
     def _fit_policy_model_step(self, states, actions, logprobs, advantages, time_step):
         """Fit policy model on one batch of data."""
@@ -585,6 +606,15 @@ class Agent:
             logpis = self.policy_model(states)
             new_logprobs = tf.reduce_sum(tf.one_hot(actions, logpis.shape[1]) * logpis, axis=1)
             loss = tf.reduce_mean(self.policy_loss(new_logprobs, logprobs, advantages, time_step))
+=======
+    @tf.function(experimental_relax_shapes=True)
+    def _fit_policy_model_step(self, states, actions, logprobs, advantages):
+        """Fit policy model on one batch of data."""
+        with tf.GradientTape() as tape:
+            logpis = self.policy_model(states)
+            new_logprobs = tf.reduce_sum(tf.one_hot(actions, tf.shape(logpis)[1]) * logpis, axis=1)
+            loss = tf.reduce_mean(self.policy_loss(new_logprobs, logprobs, advantages))
+>>>>>>> master
             kld = tf.reduce_mean(logprobs - new_logprobs)
             ent = -tf.reduce_mean(new_logprobs)
         varis = self.policy_model.trainable_variables
@@ -602,7 +632,7 @@ class Agent:
 
     def _fit_value_model(self, dataset, epochs=1):
         """Fit value model using data from dataset."""
-        if self.value_model is None or hasattr(self.value_model, 'agent'):
+        if self.value_model is None or self.value_model == 'env':
             epochs = 0
         history = {'loss': []}
         for epoch in range(epochs):
@@ -614,7 +644,7 @@ class Agent:
             history['loss'].append(loss / batches)
         return {k: np.array(v) for k, v in history.items()}
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def _fit_value_model_step(self, states, values):
         """Fit value model on one batch of data."""
         with tf.GradientTape() as tape:
@@ -627,12 +657,12 @@ class Agent:
 
     def load_value_weights(self, filename):
         """Load weights from filename into the value model."""
-        if self.value_model is not None:
+        if self.value_model is not None and self.value_model != 'env':
             self.value_model.load_weights(filename)
 
     def save_value_weights(self, filename):
         """Save the current weights in the value model to filename."""
-        if self.value_model is not None:
+        if self.value_model is not None and self.value_model != 'env':
             self.value_model.save_weights(filename)
 
 
