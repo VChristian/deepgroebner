@@ -420,7 +420,7 @@ class PointerDecidingLayer(tf.keras.layers.Layer):
             attention_scores = tf.squeeze(tf.linalg.matmul(lstm_decoder_output, encoder_output, transpose_b = True), axis = 1) + tf.cast(~mask, tf.float32) * -1e9
             return self.softmax(attention_scores)
         else:
-            pad_dim = encoder_output.shape[1]
+            pad_dim = tf.shape(encoder_output)[1]
             lstm_decoder_projection = self.decode_weight(lstm_decoder_output) # (batch_size, 1, embed_dim)
             encoder_project = self.encoder_weight(encoder_output) # (batch_size, padd_dim, embed_dim)
             similarity_score = self.v(self.tanh(encoder_project + tf.tile(lstm_decoder_projection, [1, pad_dim, 1])))
