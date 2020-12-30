@@ -317,6 +317,7 @@ class TransformerLayer(tf.keras.layers.Layer):
             Processed batch with mask passed through.
 
         """
+        batch = tf.cast(batch, tf.float32)
         X1 = self.attention(batch, mask=mask)
         X1 = self.dropout1(X1, training=training)
         X1 = self.layer_norm1(batch + X1)
