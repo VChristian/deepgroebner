@@ -597,7 +597,7 @@ class Elector():
             for voter in self.voters:
                 prob = tf.exp(voter(inputs))
                 final_probs = final_probs + prob
-            final_probs = tf.math.log(tf.math.divide(final_probs, np.sum(final_probs)))
+            final_probs = tf.math.log(tf.math.divide(final_probs, tf.math.reduce_sum(final_probs)))
             return final_probs
 
 class CustomLSTM(tf.keras.layers.Layer):
