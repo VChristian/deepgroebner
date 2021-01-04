@@ -584,6 +584,22 @@ class PointerNetwork(tf.keras.Model):
         log_prob = self.pointer(X, state)
         return log_prob
 
+class Elector():
+    def __init__(self, models:list):
+        self.voters = models
+
+    def call(self, inputs):
+        if len(self.voters) == 0:
+            print('No models provided!')
+            return None
+        else:
+            final_probs = []
+            for voter in self.voters:
+                final_probs.append(voter(inputs))
+        
+        # some deciding function
+
+
 
 class CustomLSTM(tf.keras.layers.Layer):
     def __init__(self, hl_out_size):
