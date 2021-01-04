@@ -588,18 +588,17 @@ class Elector():
     def __init__(self, models:list):
         self.voters = models
 
-    def call(self, inputs):
+    def __call__(self, inputs):
         if len(self.voters) == 0:
             print('No models provided!')
             return None
         else:
-            final_probs = []
+            final_probs = tf.zeros((1,inputs.shape[1]))
             for voter in self.voters:
-                final_probs.append(voter(inputs))
-        
-        # some deciding function
-
-
+                prob = tf.exp(voter(inputs))
+                final_probs = tf.math.add(final_probs, prob)
+            final_probs = tf.math.divide(final_probs, np.sum(final_probs))
+            return tf.math.log(final_probs)
 
 class CustomLSTM(tf.keras.layers.Layer):
     def __init__(self, hl_out_size):
