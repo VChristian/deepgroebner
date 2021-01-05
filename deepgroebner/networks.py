@@ -586,7 +586,7 @@ class PointerNetwork(tf.keras.Model):
 
 class Elector():
     def __init__(self, models:list):
-        self.weights = [1.25,.125,.125]
+        self.weights = np.ones(len(models))/len(models)
         self.voters = models
 
     def __call__(self, inputs):
