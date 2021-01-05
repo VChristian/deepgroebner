@@ -586,6 +586,7 @@ class PointerNetwork(tf.keras.Model):
 
 class Elector():
     def __init__(self, models:list):
+        self.weights = [.5,.25,.25]
         self.voters = models
 
     def __call__(self, inputs):
@@ -594,8 +595,8 @@ class Elector():
             return None
         else:
             final_probs = np.zeros((1, inputs.shape[1]))
-            for voter in self.voters:
-                prob = tf.exp(voter(inputs))
+            for index, voter in enumerate(self.voters):
+                prob = self.weights[index] * tf.exp(voter(inputs))
                 final_probs = final_probs + prob
             final_probs = tf.math.log(tf.math.divide(final_probs, tf.math.reduce_sum(final_probs)))
             return final_probs
