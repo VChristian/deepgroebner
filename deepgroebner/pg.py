@@ -294,7 +294,12 @@ class Agent:
         self.action_dim_fn = action_dim_fn
         self.kld_limit = kld_limit
 
+<<<<<<< Updated upstream
     def act(self, state, greedy=False, return_logp=False):
+=======
+    #@tf.function(experimental_relax_shapes=True)
+    def act(self, state, return_logprob=False):
+>>>>>>> Stashed changes
         """Return an action for the given state using the policy model.
 
         Parameters
