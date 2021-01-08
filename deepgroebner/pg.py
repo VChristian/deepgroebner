@@ -323,7 +323,7 @@ class Agent:
         self.normalize_advantages = normalize_advantages
         self.kld_limit = kld_limit
 
-    @tf.function(experimental_relax_shapes=True)
+    #@tf.function(experimental_relax_shapes=True)
     def act(self, state, return_logprob=False):
         """Return an action for the given state using the policy model.
 
@@ -336,7 +336,8 @@ class Agent:
 
         """
         logpi = self.policy_model(state[tf.newaxis])
-        action = tf.random.categorical(logpi, 1)[0, 0]
+        #action = tf.random.categorical(logpi, 1)[0, 0]
+        action = tf.math.argmax(logpi[0])
         if return_logprob:
             return action, logpi[:, action][0]
         else:
