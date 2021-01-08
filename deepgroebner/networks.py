@@ -560,6 +560,39 @@ class TransformerPMLP(tf.keras.Model):
         X = self.deciding(X)
         return X
 
+class TranformerPNET(tf.keras.Model):
+    """Combination of pointer and transformer network"""
+
+    def __init__(self, dim, embed_dim, pointer_dim, hidden_layers = [], transformer_layers = 1):
+        """
+        dim:
+            dimension of the attention layer in Transformer
+        embed_dim:
+            feed forward network size at the end of Transformer
+        pointer_dim:
+            dimension of the rnn
+        hidden_layers:
+            layers for teh rnn
+        transformer_layers:
+            number of layers in the transformer model
+        """
+        super(TranformerPNET, self).__init__() 
+        self.embedding = ParallelEmbeddingLayer(dim, [], activation='selu', final_activation='selu')
+        self.attn = []
+        for _ in range(transformer_layers):
+            self.attn.append(TransformerLayer(dim, embed_dim, n_heads = 4))
+        self.rnn = RecurrentEmbeddingLayer(pointer_dim, hidden_layers)
+        self.pointer = PointerDecidingLayer(embed_dim, pointer_dim, hidden_layers, dot_product_attention=False)
+
+    def call(self, batch, training = False):
+        X = self.embedding(batch)
+        for attn_layer in self.attn:
+            X = attn_layer(X, training = training)
+        X, *state = self.rnn(X)
+        logpi = self.pointer(X, state)
+        return logpi
+
+
 
 class PointerNetwork(tf.keras.Model):
     """Recurrent embedding followed by pointer."""
