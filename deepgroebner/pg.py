@@ -336,8 +336,8 @@ class Agent:
 
         """
         logpi = self.policy_model(state[tf.newaxis])
-        #action = tf.random.categorical(logpi, 1)[0, 0]
-        action = tf.math.argmax(logpi[0])
+        action = tf.random.categorical(logpi, 1)[0, 0]
+        #action = tf.math.argmax(logpi[0])
         if return_logprob:
             return action, logpi[:, action][0]
         else:
