@@ -749,3 +749,6 @@ class PPOAgent(Agent):
     def __init__(self, policy_network, schedule = False, beta = 0, eps=0.2, **kwargs):
         super().__init__(policy_network, **kwargs)
         self.policy_loss = ppo_surrogate_loss(betaScheduler(schedule = schedule, beta_val = beta), eps)
+
+class MultiAgent(Agent):
+    pass

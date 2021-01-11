@@ -113,11 +113,11 @@ class RecurrentEmbeddingLayer(tf.keras.layers.Layer):
 
     """
 
-    def __init__(self, embed_dim, hidden_layers, cell='gru', need_mask = True):
+    def __init__(self, embed_dim, hidden_layers, cell='gru', need_mask = True, go_backwards = False):
         super(RecurrentEmbeddingLayer, self).__init__()
         cell_fn = tf.keras.layers.GRU if cell == 'gru' else tf.keras.layers.LSTM
-        self.hidden_layers = [cell_fn(u, return_sequences=True, return_state=True) for u in hidden_layers]
-        self.final_layer = cell_fn(embed_dim, return_sequences=True, return_state=True)
+        self.hidden_layers = [cell_fn(u, return_sequences=True, return_state=True, go_backwards=go_backwards) for u in hidden_layers]
+        self.final_layer = cell_fn(embed_dim, return_sequences=True, return_state=True, go_backwards=go_backwards)
         self.supports_masking = need_mask
 
     def call(self, batch, initial_state = None):
@@ -145,7 +145,6 @@ class RecurrentEmbeddingLayer(tf.keras.layers.Layer):
 
     def compute_mask(self, batch, mask=None):
         return tf.math.not_equal(batch[:, :, -1], -1)
-
 
 class DenseProcessingLayer(tf.keras.layers.Layer):
     """A simple processing stack that applies dense layers.
@@ -439,6 +438,31 @@ class PointerDecidingLayer(tf.keras.layers.Layer):
         np.random.seed()
         return start_token
 
+class BidirectionalRecurrentEmbedding(tf.keras.layers.Layer):
+
+    def __init__(self, embed_dim, rnn_hidden_layers:list, cell = 'gru', merge = 'concat'):
+        
+        super(BidirectionalRecurrentEmbedding, self).__init__()
+
+        # Initialize both forward and backward layers
+        self.forward = RecurrentEmbeddingLayer(embed_dim, hidden_layers = rnn_hidden_layers, cell = cell)
+        self.backward = RecurrentEmbeddingLayer(embed_dim, hidden_layers = rnn_hidden_layers, cell = cell, go_backwards=True)
+        self.merge = tf.concat
+        self.supports_masking = True
+
+    def call(self, batch):
+
+        # Forward and backward pass
+        forward_batch,_ = self.forward(batch)
+        backward_batch,_ = self.backward(batch)
+
+        # Combine with merge function
+        combined_batches = self.merge([forward_batch, backward_batch], 2)
+        return combined_batches
+
+    def compute_mask(self, batch, mask=None):
+        return tf.math.not_equal(batch[:, :, -1], -1)
+
 
 class ParallelMultilayerPerceptron(tf.keras.Model):
     """A parallel multilayer perceptron network.
@@ -593,7 +617,6 @@ class TranformerPNET(tf.keras.Model):
         return logpi
 
 
-
 class PointerNetwork(tf.keras.Model):
     """Recurrent embedding followed by pointer."""
 
@@ -616,6 +639,20 @@ class PointerNetwork(tf.keras.Model):
         X, *state = self.encoder(input)
         log_prob = self.pointer(X, state)
         return log_prob
+
+class BidirectionalPMLP(tf.keras.Model):
+
+    def __init__(self, embed_dim, rnn_hidden_layers:list, deciding_hidden_layers:list, cell = 'gru', merge = 'concat'):
+        
+        super(BidirectionalPMLP, self).__init__()
+        self.embedding = BidirectionalRecurrentEmbedding(embed_dim, rnn_hidden_layers)
+        self.decider = ParallelDecidingLayer(deciding_hidden_layers)
+
+    def call(self, batch):
+        X = self.embedding(batch)
+        log_prob = self.decider(X)
+        return log_prob
+
 
 class Elector():
     def __init__(self, models:list):
