@@ -75,7 +75,7 @@ def make_parser():
                      help='clip ratio for PPO')
     alg.add_argument('--beta',
                     type=float,
-                    default = 1e-3,
+                    default = 0,
                     help='weight for entropy')
     alg.add_argument('--schedule',
                     type = int,
