@@ -439,8 +439,22 @@ class PointerDecidingLayer(tf.keras.layers.Layer):
         return start_token
 
 class BidirectionalRecurrentEmbedding(tf.keras.layers.Layer):
+    """Forward and backward RNN for bidirectional encodings."""
 
     def __init__(self, embed_dim, rnn_hidden_layers:list, cell = 'gru', merge = 'concat'):
+        """
+        embed_dim: 
+            RNN size
+        rnn_hidden_layers:
+            Layer the forward/backward RNN with additional recurrent layers by giving a list of dimensions of the layers.
+        deciding_hidden_layers:
+            List of dimensions of feed forward networks in the ParallelDecidingLayer
+        cell:
+            RNN cell type
+        merge:
+            Merging the forward and backward passes. Possible values:
+                {"concat"} NOTE:will add more later!
+        """
         
         super(BidirectionalRecurrentEmbedding, self).__init__()
 
@@ -641,9 +655,19 @@ class PointerNetwork(tf.keras.Model):
         return log_prob
 
 class BidirectionalPMLP(tf.keras.Model):
+    """Bidirectional RNN as the embedding layer with a Parallel Deciding Layer."""
 
-    def __init__(self, embed_dim, rnn_hidden_layers:list, deciding_hidden_layers:list, cell = 'gru', merge = 'concat'):
-        
+    def __init__(self, embed_dim, rnn_hidden_layers:list, deciding_hidden_layers:list, cell = 'gru'):
+        """
+        embed_dim: 
+            RNN size
+        rnn_hidden_layers:
+            Layer the forward/backward RNN with additional recurrent layers by giving a list of dimensions of the layers.
+        deciding_hidden_layers:
+            List of dimensions of feed forward networks in the ParallelDecidingLayer
+        cell:
+            RNN cell type
+        """
         super(BidirectionalPMLP, self).__init__()
         self.embedding = BidirectionalRecurrentEmbedding(embed_dim, rnn_hidden_layers)
         self.decider = ParallelDecidingLayer(deciding_hidden_layers)
@@ -653,6 +677,18 @@ class BidirectionalPMLP(tf.keras.Model):
         log_prob = self.decider(X)
         return log_prob
 
+class BidirectionalPNET(tf.keras.Model):
+    """Bidirectional version of the pointer network."""
+
+    def __init__(self, embed_dim, rnn_hidden_layers:list, cell = 'gru'):
+        super(BidirectionalPNET, super).__init__()
+        self.embedding = BidirectionalRecurrentEmbedding(embed_dim, rnn_hidden_layers)
+        self.pointer = PointerDecidingLayer(embed_dim, embed_dim*2, [])
+    
+    def call(self, batch):
+        X, *state = self.embedding(batch)
+        logpi = self.pointer(X, state)
+        return logpi
 
 class Elector():
     def __init__(self, models:list):
