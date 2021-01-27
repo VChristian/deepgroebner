@@ -11,6 +11,7 @@ import tensorflow as tf
 
 from deepgroebner.buchberger import LeadMonomialsEnv, BuchbergerAgent
 from deepgroebner.pg import PGAgent, PPOAgent
+from deepgroebner.ac import Agent_AC
 from deepgroebner.networks import MultilayerPerceptron, ParallelMultilayerPerceptron, AttentionPMLP, TransformerPMLP, PairsLeftBaseline, AgentBaseline
 from deepgroebner.tpmlp_mha_scoring import TransformerPMLP_Score_MHA
 from deepgroebner.tpmlp_q_scoring import TransformerLayer_Score_Q
@@ -272,6 +273,10 @@ def make_agent(args):
                          policy_lr=args.policy_lr, policy_updates=args.policy_updates,
                          value_network=value_network, value_lr=args.value_lr, value_updates=args.value_updates,
                          gam=args.gam, lam=args.lam, kld_limit=args.policy_kld_limit, ent_bonus=args.ent_bonus)
+    elif args.algorithm == 'ac':
+        agent = Agent_AC(policy_network=policy_network,policy_lr=args.policy_lr, policy_updates=args.policy_updates,
+                        value_network=value_network, value_lr=args.value_lr, value_updates=args.value_updates,
+                        gam=args.gam, lam=args.lam, kld_limit=args.policy_kld_limit, ent_bonus=args.ent_bonus)
     return agent
 
 
