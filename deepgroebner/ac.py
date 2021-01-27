@@ -239,7 +239,8 @@ class Agent_AC(dpg.Agent):
                    'policy_updates': np.zeros(epochs),
                    'delta_policy_loss': np.zeros(epochs),
                    'policy_ent': np.zeros(epochs),
-                   'policy_kld': np.zeros(epochs)}
+                   'policy_kld': np.zeros(epochs),
+                   'loss_val': np.zeros(epochs)}
 
         for i in range(epochs):
             self.buffer.clear()
@@ -258,10 +259,13 @@ class Agent_AC(dpg.Agent):
             history['min_ep_lens'][i] = np.min(return_history['lengths'])
             history['max_ep_lens'][i] = np.max(return_history['lengths'])
             history['std_ep_lens'][i] = np.std(return_history['lengths'])
-            history['policy_updates'][i] = len(policy_history['loss'])
-            history['delta_policy_loss'][i] = policy_history['loss'][-1] - policy_history['loss'][0]
+            history['policy_updates'][i] = len(policy_history['loss_pol'])
+
+            history['delta_policy_loss'][i] = policy_history['loss_pol'][-1] - policy_history['loss_pol'][0]
+
             history['policy_ent'][i] = policy_history['ent'][-1]
             history['policy_kld'][i] = policy_history['kld'][-1]
+            history['loss_val'][i] = policy_history['loss_val'][-1]
 
             if logdir is not None and (i+1) % save_freq == 0:
                 self.save_policy_weights(logdir + "/policy-" + str(i+1) + ".h5")
@@ -282,6 +286,7 @@ class Agent_AC(dpg.Agent):
                     tf.summary.histogram('percent_error', self.buffer.get_perror(), step = i)
                     tf.summary.histogram('difference', self.buffer.get_difference, step = i)
                     tf.summary.histogram('corr', self.buffer.get_correlation(), step = i)
+                    tf.summary.scalar('score_mse', history['loss_val'][i], step = i)
 
                     tf.summary.scalar('policy_updates', history['policy_updates'][i], step=i)
                     tf.summary.scalar('delta_policy_loss', history['delta_policy_loss'][i], step=i)
@@ -325,7 +330,7 @@ class Agent_AC(dpg.Agent):
 
     def _fit_policy_model(self, dataset, epochs=1):
         history = {'loss_pol': [], 'loss_val': [], 'kld': [], 'ent': []}
-        for _ in range(5):
+        for _ in range(1):
             loss_pol, loss_val, kld, ent, batches = 0, 0, 0, 0, 0
             for states, actions, logprobs, advantages, values in dataset:
                 batch_loss_pol, batch_loss_val, batch_kld, batch_ent = self._fit_policy_model_step(states, actions, logprobs, advantages, values)
