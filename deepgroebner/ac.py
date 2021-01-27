@@ -166,7 +166,7 @@ def print_status_bar(i, epochs, history, verbose=1):
 
 @tf.function(experimental_relax_shapes=True)
 def ac_loss(logprob, advantage):
-    return tf.math.reduce_sum(tf.math.multiply(logprob, advantage))
+    return -tf.math.reduce_sum(tf.math.multiply(logprob, advantage))
 
 class Agent_AC(dpg.Agent):
 
@@ -372,7 +372,7 @@ class Agent_AC(dpg.Agent):
             logpis, _ = self.policy_model(states)
             new_logprobs = tf.reduce_sum(tf.one_hot(actions, tf.shape(logpis)[1]) * logpis, axis=1)
             ent = -tf.reduce_mean(new_logprobs)
-            loss_pol = tf.reduce_mean(self.policy_loss(new_logprobs, advantages))
+            loss_pol = self.policy_loss(new_logprobs, advantages)
             kld = tf.reduce_mean(logprobs - new_logprobs)     
 
         grad_policy = tape.gradient(loss_pol, varis)
