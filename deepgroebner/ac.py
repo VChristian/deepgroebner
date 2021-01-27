@@ -284,7 +284,7 @@ class Agent_AC(dpg.Agent):
                     tf.summary.histogram('lengths', return_history['lengths'], step=i)
 
                     tf.summary.histogram('percent_error', self.buffer.get_perror(), step = i)
-                    tf.summary.histogram('difference', self.buffer.get_difference, step = i)
+                    tf.summary.histogram('difference', self.buffer.get_difference(), step = i)
                     tf.summary.histogram('corr', self.buffer.get_correlation(), step = i)
                     tf.summary.scalar('score_mse', history['loss_val'][i], step = i)
 
