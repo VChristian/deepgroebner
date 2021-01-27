@@ -23,7 +23,8 @@ def approximate_q(reward, value, gam):
     
     reward = np.array(reward, dtype = np.float)
     value = np.array(value, dtype = np.float)
-    q_func = reward - (gam * value)
+    q_func = reward[:-1] + (gam * value[1:])
+    q_func = np.append(q_func, reward[-1])
     return q_func
 
 def approximate_advantage(q, v):
